@@ -7,8 +7,49 @@ export default class App extends React.Component {
     super();
     this.state = {
       todos: [],
-      error: ''
+      error: '',
+      todoNameInput: '',
+      showComplete: true
     }
+  }
+
+  handleInputChange = e => {
+    const { value } = e.target;
+    this.setState({
+      ...this.state,
+      todoNameInput: value
+    })
+  }
+
+  resetFormInput = () => {
+    this.setState({
+      ...this.state,
+      todoNameInput: ''
+    })
+  }
+
+  handleAxiosErrorMSG = (err) => {
+    this.setState({
+      ...this.state,
+      error: err.response.data.message
+    })
+  }
+
+
+  handlePost = () => {
+    axios.post(URL, { name: this.state.todoNameInput })
+      .then(res => {
+        console.log(res);
+        this.setState({...this.state, todos: this.state.todos.concat(res.data.data)});
+        this.resetFormInput();
+      })
+      .catch(this.handleAxiosErrorMSG)
+  }
+
+  handleSubmit = (e) => {
+    e.preventDefault();
+    console.log("submitting form");
+    this.handlePost();
   }
 
   fetchAllTodos = (todosState) => {
@@ -21,12 +62,28 @@ export default class App extends React.Component {
         todos: res.data.data
       })
     })
-    .catch(err => {
-      this.setState({
-        ...this.state,
-        error: err.response.data.message
+    .catch(this.handleAxiosErrorMSG)
+  }
+
+  toggleCompleted = id => e => {
+    axios.patch(`${URL}/${id}`)
+      .then(res => {
+        this.setState({
+          ...this.state,
+          todos: this.state.todos.map(td => {
+            if (td.id !== id) return td;
+            return res.data.data
+          })
+        })
       })
-    });
+      .catch(this.handleAxiosErrorMSG)
+  }
+
+  toggleDisplayComplete = () => {
+    this.setState({
+      ...this.state,
+      showComplete: !this.state.showComplete
+    })
   }
 
   componentDidMount() {
@@ -40,16 +97,19 @@ export default class App extends React.Component {
         <div id="todos">
           <h2>Todos:</h2>
           {
-            this.state.todos.map(td => {
-              return <div key={td.id}>{td.name}</div>;
-            })
+            this.state.todos.reduce((acc, td) => {
+              if (this.state.showComplete || !td.completed) return acc.concat(
+                <div key={td.id} onClick={this.toggleCompleted(td.id)}>{td.name}{td.completed ? " ✔️" : ""}</div>
+              );
+              return acc;
+            }, [])
           }
         </div>
-        <form id="todoForm">
-          <input type="text" placeholder="Type todo"></input>
+        <form id="todoForm" onSubmit={this.handleSubmit}>
+          <input value={this.state.todoNameInput} onChange={this.handleInputChange} type="text" placeholder="Type todo"></input>
           <input type="submit"></input>
-          <button>Clear Completed</button>
         </form>
+        <button onClick={this.toggleDisplayComplete}>{this.state.showComplete ? 'Hide' : 'Show'} Completed</button>
       </div>
     )
   }
